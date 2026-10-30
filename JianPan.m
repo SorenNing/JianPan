@@ -79,6 +79,7 @@ static BOOL jpSwitchPresetsWithDarkMode = NO;
 static NSString *jpThemeName = nil, *jpThemePath = nil;
 static NSString *jpHTMLThemeName = nil, *jpHTMLIndexPath = nil;
 static NSInteger jpGen = 0;
+static BOOL jpSafeMode = YES;   // 0.5 二分：YES=只装基线组
 
 static BOOL JPBool(NSString *key, BOOL dflt) {
     CFPreferencesAppSynchronize(CFSTR(JP_DOMAIN));
@@ -227,6 +228,7 @@ static void JPReloadPrefs(void) {
     jpLightPreset = JPStr(@"LaetusPresetsLightMode");
     jpDarkPreset = JPStr(@"LaetusPresetsDarkMode");
     jpSwitchPresetsWithDarkMode = JPBool(@"SwitchPresetsWithDarkMode", NO);
+    jpSafeMode = JPBool(@"SafeMode", YES);
     NSString *theme = JPStr(@"ActiveTheme");
     if (![jpThemeName isEqualToString:theme]) { jpThemeName = theme; }
     NSString *html = JPStr(@"ActiveHTMLTheme");
@@ -704,6 +706,8 @@ static void JPInstallHooks(void) {
         }
     }
 
+    if (jpSafeMode) { JPLog(@"safe mode: skipping render/element/config/global hooks"); return; }
+
     Class renderer = NSClassFromString(@"UIKBRenderer");
     if (renderer && !orig_renderKeyContents) {
         SEL sel = NSSelectorFromString(@"renderKeyContents:withTraits:");
@@ -713,17 +717,24 @@ static void JPInstallHooks(void) {
         }
     }
 
+    // keyViewLayout 属于 0.2 已验证安全组，放闸门前
+    Class keyViewEarly = NSClassFromString(@"UIKBKeyView");
+    if (keyViewEarly && !orig_keyViewLayout) {
+        SEL lay = @selector(layoutSubviews);
+        if ([keyViewEarly instancesRespondToSelector:lay]) {
+            MSHookMessageEx(keyViewEarly, lay, (IMP)jp_hook_keyViewLayout, (IMP *)&orig_keyViewLayout);
+            JPLog(@"hook installed: UIKBKeyView layoutSubviews (shadows)");
+        }
+    }
+
+    if (jpSafeMode) { JPLog(@"safe mode: skipping render/element/config/global hooks"); return; }
+
     Class keyView = NSClassFromString(@"UIKBKeyView");
     if (keyView) {
         SEL pop = NSSelectorFromString(@"_populateLayer:withContents:");
         if (!orig_populateLayer && [keyView instancesRespondToSelector:pop]) {
             MSHookMessageEx(keyView, pop, (IMP)jp_hook_populateLayer, (IMP *)&orig_populateLayer);
             JPLog(@"hook installed: UIKBKeyView _populateLayer:withContents:");
-        }
-        SEL lay = @selector(layoutSubviews);
-        if (!orig_keyViewLayout && [keyView instancesRespondToSelector:lay]) {
-            MSHookMessageEx(keyView, lay, (IMP)jp_hook_keyViewLayout, (IMP *)&orig_keyViewLayout);
-            JPLog(@"hook installed: UIKBKeyView layoutSubviews (shadows)");
         }
     }
 
@@ -832,7 +843,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.4 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.5 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),

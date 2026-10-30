@@ -398,6 +398,18 @@
 			<key>defaults</key>
 			<string>com.ning.jianpan</string>
 			<key>key</key>
+			<string>SafeMode</string>
+			<key>label</key>
+			<string>安全模式（基线 hook）</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
 			<string>MessagesUsePredictionColour</string>
 			<key>label</key>
 			<string>消息栏使用预测背景颜色</string>
