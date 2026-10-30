@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>title</key>
+	<string>键盘</string>
 	<key>items</key>
 	<array>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>照 Laetus 方式实现的键盘美化。模式：无（纯色）/ HTML / 图片 / 主题。</string>
 			<key>label</key>
 			<string>键盘</string>
 		</dict>
@@ -28,26 +28,26 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>点击下方输入框弹出键盘，实时预览效果。</string>
+			<string>点击输入框弹出键盘，实时预览效果。</string>
 			<key>label</key>
 			<string>键盘测试区</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSEditTextCell</string>
-			<key>key</key>
-			<string>TestAreaDummy</string>
 			<key>defaults</key>
 			<string>com.ning.jianpan.test</string>
+			<key>key</key>
+			<string>TestAreaDummy</string>
 			<key>placeholder</key>
 			<string>在这里打字试试键盘 →</string>
 		</dict>
-
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>无 = 纯颜色；HTML = 动画网页背景；图片 = 相册选图；主题 = PNG 主题包（小组件不支持）。\n主题路径：/var/mobile/Library/JianPan/Themes/&lt;主题名&gt;/</string>
+			<string>无 = 纯颜色；HTML = 动画网页背景；图片 = 相册选图；主题 = PNG 主题包（小组件不支持）。
+主题路径：/var/mobile/Library/JianPan/Themes/主题名/</string>
 			<key>label</key>
 			<string>主题模式</string>
 		</dict>
@@ -128,10 +128,26 @@
 			<string>选择主题…</string>
 		</dict>
 		<dict>
+			<key>action</key>
+			<string>openThemesFolder:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>打开主题目录</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>listThemes:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>查看已装主题</string>
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>颜色模式（背景=无 时生效；预测栏颜色随时生效）。</string>
+			<string>颜色模式（背景=无 时生效；预测栏颜色随时生效）。点「选择颜色…」用系统取色器选取，实时生效。</string>
 			<key>label</key>
 			<string>颜色</string>
 		</dict>
@@ -298,14 +314,6 @@
 			<string>CustomKeyCapGradientEnd</string>
 			<key>label</key>
 			<string>弹出渐变结束 — 选择颜色…</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>点「选择颜色…」用系统取色器选取，实时生效（无需注销）。</string>
-			<key>label</key>
-			<string>颜色值</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -551,15 +559,13 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>键盘 (JianPan) 0.4
+			<string>键盘 (JianPan) 0.7.1
 作者: Ning
-实现方式照 Laetus 3.5.1 逆向（颜色劫持 UIKBGetNamedColor + 背景贴图 UIKBSplitImageView + 元素隐藏）。
+实现方式照 Laetus 3.5.1 逆向。
 日志: /var/mobile/Library/JianPan.log</string>
 			<key>label</key>
 			<string>关于</string>
 		</dict>
 	</array>
-	<key>title</key>
-	<string>键盘</string>
 </dict>
 </plist>
