@@ -8,7 +8,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>照 Laetus 方式实现的键盘美化。把按 keyplane 命名的 PNG 放进主题文件夹，铺满键盘背景。</string>
+			<string>照 Laetus 方式实现的键盘美化。模式：无（纯色）/ HTML / 图片 / 主题。</string>
 			<key>label</key>
 			<string>键盘</string>
 		</dict>
@@ -28,9 +28,77 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>未选择时自动使用第一个主题文件夹。切换后重新弹出键盘生效。</string>
+			<string>无 = 纯颜色；HTML = 动画网页背景；图片 = 相册选图；主题 = PNG 主题包。小组件模式不支持。</string>
 			<key>label</key>
-			<string>主题</string>
+			<string>主题模式</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>BackgroundMode</string>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+			<key>validTitles</key>
+			<array>
+				<string>无</string>
+				<string>HTML</string>
+				<string>图片</string>
+				<string>主题</string>
+			</array>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>pickHTMLTheme:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>选择 HTML 主题…</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>backgroundImageContentModeInt</string>
+			<key>label</key>
+			<string>背景图片填充模式</string>
+			<key>validTitles</key>
+			<array>
+				<string>拉伸填充</string>
+				<string>适应完整</string>
+				<string>外观填充</string>
+				<string>居中</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>pickUserImage:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>选择自定义图片…</string>
 		</dict>
 		<dict>
 			<key>action</key>
@@ -41,40 +109,328 @@
 			<string>选择主题…</string>
 		</dict>
 		<dict>
-			<key>action</key>
-			<string>listThemes:</string>
 			<key>cell</key>
-			<string>PSButtonCell</string>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>颜色模式（背景=无 时生效；预测栏颜色随时生效）。</string>
 			<key>label</key>
-			<string>查看已装主题</string>
+			<string>颜色</string>
 		</dict>
 		<dict>
-			<key>action</key>
-			<string>openThemesFolder:</string>
 			<key>cell</key>
-			<string>PSButtonCell</string>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomBackgroundColourEnabled</string>
 			<key>label</key>
-			<string>打开主题目录</string>
+			<string>背景颜色启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomTextColourEnabled</string>
+			<key>label</key>
+			<string>文本颜色启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomPredictionTextColourEnabled</string>
+			<key>label</key>
+			<string>预测栏文本颜色启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomPredictionBarBackgroundColourEnabled</string>
+			<key>label</key>
+			<string>预测栏背景颜色启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomKeyTintEnabled</string>
+			<key>label</key>
+			<string>按键色调颜色启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomEmojiSearchBackgroundEnabled</string>
+			<key>label</key>
+			<string>表情搜索背景颜色启用</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>主题图命名（全部可选后缀）：
-KeyboardMainBG / KeyboardNumbersBG / KeyboardEmojiBG / KeyboardNumberPadBG / KeyboardAutoFillBG / KeyboardPickerBG / KeyboardDictationBG
-+ (-Portrait | -Landscape) + (-932h|-896h|-852h|-844h|-812h|-736h|-667h) + (@3x|@2x) + .png
-例：KeyboardMainBG-Portrait-932h@3x.png
-屏高后缀不匹配会自动降级；无方向后缀 = 双向通用。</string>
+			<string>注意：颜色值当前在 tweak 内置的预设编辑器中修改，或直接编辑预设 plist（格式 #RRGGBB:alpha）。下一版将加入可视化取色器。</string>
 			<key>label</key>
-			<string>命名规则</string>
+			<string>颜色值</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>键</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideKeyShadows</string>
+			<key>label</key>
+			<string>隐藏键阴影</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideKeyCaps</string>
+			<key>label</key>
+			<string>隐藏键帽</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideKeyPopups</string>
+			<key>label</key>
+			<string>隐藏按键弹出</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideLanguageIndicator</string>
+			<key>label</key>
+			<string>隐藏语言指示器</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideEmojiSlider</string>
+			<key>label</key>
+			<string>隐藏表情滑块</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideEmojiSliderOverlay</string>
+			<key>label</key>
+			<string>隐藏表情滑块覆盖</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>HideKeyPlane</string>
+			<key>label</key>
+			<string>隐藏钥匙</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>键盘 (JianPan)
+			<string>保存整套颜色配置为预设；可分别指定深色/浅色模式使用的预设。</string>
+			<key>label</key>
+			<string>预设</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>savePreset:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>保存当前颜色为预设…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>loadPreset:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>加载预设…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>deletePreset:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>删除预设…</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>SwitchPresetsWithDarkMode</string>
+			<key>label</key>
+			<string>深浅色自动切换预设</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>pickLightPreset:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>浅色模式预设…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>pickDarkPreset:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>深色模式预设…</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>高级</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>OverrideKeyboardMode</string>
+			<key>label</key>
+			<string>强制键盘模式</string>
+			<key>validTitles</key>
+			<array>
+				<string>自动</string>
+				<string>深色（推荐）</string>
+				<string>浅色</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>FullyHideBackground</string>
+			<key>label</key>
+			<string>完全隐藏键盘背景</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>MessagesUsePredictionColour</string>
+			<key>label</key>
+			<string>消息栏使用预测背景颜色</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>工具</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>respring:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>注销…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>resetAllSettings:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>恢复默认…</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>键盘 (JianPan) 0.3
 作者: Ning
-实现方式照 Laetus 逆向结论：hook UIKBSplitImageView 背景贴图入口 + keyplane 切换跟踪。
+实现方式照 Laetus 3.5.1 逆向（颜色劫持 UIKBGetNamedColor + 背景贴图 UIKBSplitImageView + 元素隐藏）。
 日志: /var/mobile/Library/JianPan.log</string>
 			<key>label</key>
 			<string>关于</string>
