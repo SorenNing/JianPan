@@ -559,7 +559,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>键盘 (JianPan) 0.8
+			<string>键盘 (JianPan) 0.9
 作者: Ning
 实现方式照 Laetus 3.5.1 逆向。
 日志: /var/mobile/Library/JianPan.log</string>

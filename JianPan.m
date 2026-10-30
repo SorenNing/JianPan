@@ -79,7 +79,8 @@ static BOOL jpSwitchPresetsWithDarkMode = NO;
 static NSString *jpThemeName = nil, *jpThemePath = nil;
 static NSString *jpHTMLThemeName = nil, *jpHTMLIndexPath = nil;
 static NSInteger jpGen = 0;
-static BOOL jpSafeMode = NO;    // 0.8 默认关闭（全部 hook）
+static BOOL jpSafeMode = YES;   // 兼容旧开关
+static NSInteger jpHookGroup = 0;  // 位掩码：1渲染 2元素 4配置 8容器；0=基线 15=全开
 
 static BOOL JPBool(NSString *key, BOOL dflt) {
     CFPreferencesAppSynchronize(CFSTR(JP_DOMAIN));
@@ -228,7 +229,9 @@ static void JPReloadPrefs(void) {
     jpLightPreset = JPStr(@"LaetusPresetsLightMode");
     jpDarkPreset = JPStr(@"LaetusPresetsDarkMode");
     jpSwitchPresetsWithDarkMode = JPBool(@"SwitchPresetsWithDarkMode", NO);
-    jpSafeMode = JPBool(@"SafeMode", NO);
+    jpSafeMode = JPBool(@"SafeMode", YES);
+    jpHookGroup = JPInt(@"HookGroup", 0);
+    if (JPBool(@"SafeMode", YES) == NO) jpHookGroup = 15;  // SafeMode 关 = 全开
     NSString *theme = JPStr(@"ActiveTheme");
     if (![jpThemeName isEqualToString:theme]) { jpThemeName = theme; }
     NSString *html = JPStr(@"ActiveHTMLTheme");
@@ -773,7 +776,7 @@ static void jp_hook_cellSetImageTint(id self, SEL _cmd, UIColor *color) {
 #pragma mark - 安装
 
 static void JPInstallHooks(void) {
-    // 颜色核心：UIKBGetNamedColor
+    // ---- 基线组（0.2/0.5/0.6/0.7.1 SafeMode 下已验证无崩溃）----
     static BOOL colorHooked = NO;
     if (!colorHooked) {
         void *uikit = dlopen("/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore", RTLD_NOW);
@@ -798,18 +801,6 @@ static void JPInstallHooks(void) {
         }
     }
 
-    if (jpSafeMode) { JPLog(@"safe mode: skipping render/element/config/global hooks"); return; }
-
-    Class renderer = NSClassFromString(@"UIKBRenderer");
-    if (renderer && !orig_renderKeyContents) {
-        SEL sel = NSSelectorFromString(@"renderKeyContents:withTraits:");
-        if ([renderer instancesRespondToSelector:sel]) {
-            MSHookMessageEx(renderer, sel, (IMP)jp_hook_renderKeyContents, (IMP *)&orig_renderKeyContents);
-            JPLog(@"hook installed: UIKBRenderer renderKeyContents:withTraits:");
-        }
-    }
-
-    // keyViewLayout 属于 0.2 已验证安全组，放闸门前
     Class keyViewEarly = NSClassFromString(@"UIKBKeyView");
     if (keyViewEarly && !orig_keyViewLayout) {
         SEL lay = @selector(layoutSubviews);
@@ -819,109 +810,131 @@ static void JPInstallHooks(void) {
         }
     }
 
-    if (jpSafeMode) { JPLog(@"safe mode: skipping render/element/config/global hooks"); return; }
+    // ---- 分组开关（HookGroup 位掩码；0=只装基线）----
+    BOOL g1 = jpHookGroup & 1, g2 = jpHookGroup & 2, g3 = jpHookGroup & 4, g4 = jpHookGroup & 8;
+    JPLog(@"hook groups: render=%d element=%d config=%d host=%d (group=%ld, safe=%d)",
+          g1, g2, g3, g4, (long)jpHookGroup, jpSafeMode);
+    if (jpSafeMode) { JPLog(@"safe mode: skipping optional hooks"); return; }
 
-    Class keyView = NSClassFromString(@"UIKBKeyView");
-    if (keyView) {
-        SEL pop = NSSelectorFromString(@"_populateLayer:withContents:");
-        if (!orig_populateLayer && [keyView instancesRespondToSelector:pop]) {
-            MSHookMessageEx(keyView, pop, (IMP)jp_hook_populateLayer, (IMP *)&orig_populateLayer);
-            JPLog(@"hook installed: UIKBKeyView _populateLayer:withContents:");
+    // 组1 渲染：renderKeyContents + _populateLayer
+    if (g1) {
+        Class renderer = NSClassFromString(@"UIKBRenderer");
+        if (renderer && !orig_renderKeyContents) {
+            SEL sel = NSSelectorFromString(@"renderKeyContents:withTraits:");
+            if ([renderer instancesRespondToSelector:sel]) {
+                MSHookMessageEx(renderer, sel, (IMP)jp_hook_renderKeyContents, (IMP *)&orig_renderKeyContents);
+                JPLog(@"hook installed: UIKBRenderer renderKeyContents:withTraits:");
+            }
+        }
+        Class keyView = NSClassFromString(@"UIKBKeyView");
+        if (keyView) {
+            SEL pop = NSSelectorFromString(@"_populateLayer:withContents:");
+            if (!orig_populateLayer && [keyView instancesRespondToSelector:pop]) {
+                MSHookMessageEx(keyView, pop, (IMP)jp_hook_populateLayer, (IMP *)&orig_populateLayer);
+                JPLog(@"hook installed: UIKBKeyView _populateLayer:withContents:");
+            }
         }
     }
 
-    Class tree = NSClassFromString(@"UIKBTree");
-    if (tree) {
-        SEL n1 = NSSelectorFromString(@"noLanguageIndicator");
-        if (!orig_noLangInd && [tree instancesRespondToSelector:n1]) {
-            MSHookMessageEx(tree, n1, (IMP)jp_hook_noLangInd, (IMP *)&orig_noLangInd);
+    // 组2 元素：语言指示器 + 表情滑块 + 按键弹出
+    if (g2) {
+        Class tree = NSClassFromString(@"UIKBTree");
+        if (tree) {
+            SEL n1 = NSSelectorFromString(@"noLanguageIndicator");
+            if (!orig_noLangInd && [tree instancesRespondToSelector:n1]) {
+                MSHookMessageEx(tree, n1, (IMP)jp_hook_noLangInd, (IMP *)&orig_noLangInd);
+            }
+            SEL n2 = NSSelectorFromString(@"avoidsLanguageIndicator");
+            if (!orig_avoidsLangInd && [tree instancesRespondToSelector:n2]) {
+                MSHookMessageEx(tree, n2, (IMP)jp_hook_avoidsLangInd, (IMP *)&orig_avoidsLangInd);
+            }
+            if (orig_noLangInd || orig_avoidsLangInd) JPLog(@"hook installed: UIKBTree language indicator");
         }
-        SEL n2 = NSSelectorFromString(@"avoidsLanguageIndicator");
-        if (!orig_avoidsLangInd && [tree instancesRespondToSelector:n2]) {
-            MSHookMessageEx(tree, n2, (IMP)jp_hook_avoidsLangInd, (IMP *)&orig_avoidsLangInd);
+        Class emojiBar = NSClassFromString(@"UIKeyboardEmojiCategoryBar");
+        if (emojiBar && !orig_animScrubber) {
+            SEL sel = NSSelectorFromString(@"animateScrubberToRect:");
+            if ([emojiBar instancesRespondToSelector:sel]) {
+                MSHookMessageEx(emojiBar, sel, (IMP)jp_hook_animScrubber, (IMP *)&orig_animScrubber);
+                JPLog(@"hook installed: UIKeyboardEmojiCategoryBar animateScrubberToRect:");
+            }
         }
-        if (orig_noLangInd || orig_avoidsLangInd) JPLog(@"hook installed: UIKBTree language indicator");
-    }
-
-    Class emojiBar = NSClassFromString(@"UIKeyboardEmojiCategoryBar");
-    if (emojiBar && !orig_animScrubber) {
-        SEL sel = NSSelectorFromString(@"animateScrubberToRect:");
-        if ([emojiBar instancesRespondToSelector:sel]) {
-            MSHookMessageEx(emojiBar, sel, (IMP)jp_hook_animScrubber, (IMP *)&orig_animScrubber);
-            JPLog(@"hook installed: UIKeyboardEmojiCategoryBar animateScrubberToRect:");
-        }
-    }
-
-    Class star = NSClassFromString(@"UIKeyboardLayoutStar");
-    if (star) {
-        SEL kp = NSSelectorFromString(@"_didChangeKeyplaneWithContext:");
-        if (!orig_didChangeKeyplane && [star instancesRespondToSelector:kp]) {
-            MSHookMessageEx(star, kp, (IMP)jp_hook_didChangeKeyplane, (IMP *)&orig_didChangeKeyplane);
-            JPLog(@"hook installed: LayoutStar _didChangeKeyplaneWithContext:");
-        }
-        SEL td1 = NSSelectorFromString(@"touchDownWithKey:withTouchInfo:atPoint:executionContext:");
-        if (!orig_touchDownInfo && [star instancesRespondToSelector:td1]) {
-            MSHookMessageEx(star, td1, (IMP)jp_hook_touchDownInfo, (IMP *)&orig_touchDownInfo);
-            JPLog(@"hook installed: LayoutStar touchDown (observe)");
-        }
-        SEL spv = NSSelectorFromString(@"showPopupVariantsForKey:");
-        if (!orig_showPopupVariants && [star instancesRespondToSelector:spv]) {
-            MSHookMessageEx(star, spv, (IMP)jp_hook_showPopupVariants, (IMP *)&orig_showPopupVariants);
-            JPLog(@"hook installed: LayoutStar showPopupVariants (popups)");
+        Class star0 = NSClassFromString(@"UIKeyboardLayoutStar");
+        if (star0) {
+            SEL spv = NSSelectorFromString(@"showPopupVariantsForKey:");
+            if (!orig_showPopupVariants && [star0 instancesRespondToSelector:spv]) {
+                MSHookMessageEx(star0, spv, (IMP)jp_hook_showPopupVariants, (IMP *)&orig_showPopupVariants);
+                JPLog(@"hook installed: LayoutStar showPopupVariants (popups)");
+            }
         }
     }
 
-    Class cfg = NSClassFromString(@"UIKBRenderConfig");
-    if (cfg && !orig_lightKeyboard) {
-        SEL sel = NSSelectorFromString(@"lightKeyboard");
-        if ([cfg instancesRespondToSelector:sel]) {
-            MSHookMessageEx(cfg, sel, (IMP)jp_hook_lightKeyboard, (IMP *)&orig_lightKeyboard);
-            JPLog(@"hook installed: UIKBRenderConfig lightKeyboard");
+    // 组3 配置：lightKeyboard + transitionToStyle
+    if (g3) {
+        Class cfg = NSClassFromString(@"UIKBRenderConfig");
+        if (cfg && !orig_lightKeyboard) {
+            SEL sel = NSSelectorFromString(@"lightKeyboard");
+            if ([cfg instancesRespondToSelector:sel]) {
+                MSHookMessageEx(cfg, sel, (IMP)jp_hook_lightKeyboard, (IMP *)&orig_lightKeyboard);
+                JPLog(@"hook installed: UIKBRenderConfig lightKeyboard");
+            }
+        }
+        Class vfx = NSClassFromString(@"UIKBVisualEffectView");
+        if (vfx && !orig_transitionToStyle) {
+            SEL sel = NSSelectorFromString(@"transitionToStyle:");
+            if ([vfx instancesRespondToSelector:sel]) {
+                MSHookMessageEx(vfx, sel, (IMP)jp_hook_transitionToStyle, (IMP *)&orig_transitionToStyle);
+                JPLog(@"hook installed: UIKBVisualEffectView transitionToStyle:");
+            }
         }
     }
 
-    Class vfx = NSClassFromString(@"UIKBVisualEffectView");
-    if (vfx && !orig_transitionToStyle) {
-        SEL sel = NSSelectorFromString(@"transitionToStyle:");
-        if ([vfx instancesRespondToSelector:sel]) {
-            MSHookMessageEx(vfx, sel, (IMP)jp_hook_transitionToStyle, (IMP *)&orig_transitionToStyle);
-            JPLog(@"hook installed: UIKBVisualEffectView transitionToStyle:");
+    // 组4 容器/全局：HTML 垫层 + 深浅色 + touchDown
+    if (g4) {
+        Class hosting = NSClassFromString(@"UIInputWindowControllerHostingItem");
+        if (hosting && !orig_hostingUpdateBackdrop) {
+            SEL sel = NSSelectorFromString(@"updateInputBackdropView");
+            if ([hosting instancesRespondToSelector:sel]) {
+                MSHookMessageEx(hosting, sel, (IMP)jp_hook_hostingUpdateBackdrop, (IMP *)&orig_hostingUpdateBackdrop);
+                JPLog(@"hook installed: HostingItem updateInputBackdropView (html)");
+            }
         }
-    }
-
-    Class hosting = NSClassFromString(@"UIInputWindowControllerHostingItem");
-    if (hosting && !orig_hostingUpdateBackdrop) {
-        SEL sel = NSSelectorFromString(@"updateInputBackdropView");
-        if ([hosting instancesRespondToSelector:sel]) {
-            MSHookMessageEx(hosting, sel, (IMP)jp_hook_hostingUpdateBackdrop, (IMP *)&orig_hostingUpdateBackdrop);
-            JPLog(@"hook installed: HostingItem updateInputBackdropView (html)");
+        Class windowCls = NSClassFromString(@"UIWindow");
+        if (windowCls && !orig_traitChange) {
+            SEL sel = NSSelectorFromString(@"traitCollectionDidChange:");
+            if ([windowCls instancesRespondToSelector:sel]) {
+                MSHookMessageEx(windowCls, sel, (IMP)jp_hook_traitChange, (IMP *)&orig_traitChange);
+                JPLog(@"hook installed: UIWindow traitCollectionDidChange:");
+            }
         }
-    }
-
-    Class windowCls = NSClassFromString(@"UIWindow");
-    if (windowCls && !orig_traitChange) {
-        SEL sel = NSSelectorFromString(@"traitCollectionDidChange:");
-        if ([windowCls instancesRespondToSelector:sel]) {
-            MSHookMessageEx(windowCls, sel, (IMP)jp_hook_traitChange, (IMP *)&orig_traitChange);
-            JPLog(@"hook installed: UIWindow traitCollectionDidChange:");
+        Class star = NSClassFromString(@"UIKeyboardLayoutStar");
+        if (star) {
+            SEL td1 = NSSelectorFromString(@"touchDownWithKey:withTouchInfo:atPoint:executionContext:");
+            if (!orig_touchDownInfo && [star instancesRespondToSelector:td1]) {
+                MSHookMessageEx(star, td1, (IMP)jp_hook_touchDownInfo, (IMP *)&orig_touchDownInfo);
+                JPLog(@"hook installed: LayoutStar touchDown (observe)");
+            }
+            SEL kp = NSSelectorFromString(@"_didChangeKeyplaneWithContext:");
+            if (!orig_didChangeKeyplane && [star instancesRespondToSelector:kp]) {
+                MSHookMessageEx(star, kp, (IMP)jp_hook_didChangeKeyplane, (IMP *)&orig_didChangeKeyplane);
+                JPLog(@"hook installed: LayoutStar _didChangeKeyplaneWithContext:");
+            }
         }
-    }
-
-    Class cell = NSClassFromString(@"TUIPredictionViewCell");
-    if (cell) {
-        SEL s1 = NSSelectorFromString(@"setTextColor:");
-        if (!orig_cellSetTextColor && [cell instancesRespondToSelector:s1]) {
-            MSHookMessageEx(cell, s1, (IMP)jp_hook_cellSetTextColor, (IMP *)&orig_cellSetTextColor);
+        Class cell = NSClassFromString(@"TUIPredictionViewCell");
+        if (cell) {
+            SEL s1 = NSSelectorFromString(@"setTextColor:");
+            if (!orig_cellSetTextColor && [cell instancesRespondToSelector:s1]) {
+                MSHookMessageEx(cell, s1, (IMP)jp_hook_cellSetTextColor, (IMP *)&orig_cellSetTextColor);
+            }
+            SEL s2 = NSSelectorFromString(@"setBackgroundColor:");
+            if (!orig_cellSetBgColor && [cell instancesRespondToSelector:s2]) {
+                MSHookMessageEx(cell, s2, (IMP)jp_hook_cellSetBgColor, (IMP *)&orig_cellSetBgColor);
+            }
+            SEL s3 = NSSelectorFromString(@"setImageTintColor:");
+            if (!orig_cellSetImageTint && [cell instancesRespondToSelector:s3]) {
+                MSHookMessageEx(cell, s3, (IMP)jp_hook_cellSetImageTint, (IMP *)&orig_cellSetImageTint);
+            }
+            if (orig_cellSetTextColor) JPLog(@"hook installed: TUIPredictionViewCell colours");
         }
-        SEL s2 = NSSelectorFromString(@"setBackgroundColor:");
-        if (!orig_cellSetBgColor && [cell instancesRespondToSelector:s2]) {
-            MSHookMessageEx(cell, s2, (IMP)jp_hook_cellSetBgColor, (IMP *)&orig_cellSetBgColor);
-        }
-        SEL s3 = NSSelectorFromString(@"setImageTintColor:");
-        if (!orig_cellSetImageTint && [cell instancesRespondToSelector:s3]) {
-            MSHookMessageEx(cell, s3, (IMP)jp_hook_cellSetImageTint, (IMP *)&orig_cellSetImageTint);
-        }
-        if (orig_cellSetTextColor) JPLog(@"hook installed: TUIPredictionViewCell colours");
     }
 }
 
@@ -935,7 +948,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.8 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.9 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
