@@ -51,8 +51,9 @@ static NSString *jpThemePath = nil;      // 解析出的主题目录
 static NSInteger jpGen = 0;              // 主题代数（失效缓存用）
 
 static NSArray *JPThemeRoots(void) {
-    return @[@"/var/jb/Library/JianPan/Themes",
-             @"/var/mobile/Library/JianPan/Themes",
+    return @[@"/var/mobile/Library/JianPan/Themes",
+             @"/var/jb/Library/JianPan/Themes",
+             @"/var/jb/var/mobile/Library/JianPan/Themes",
              @"/Library/JianPan/Themes"];
 }
 

@@ -1,8 +1,11 @@
 #!/bin/sh
 set -e
-DIR=/var/jb/Library/JianPan/Themes
-mkdir -p "$DIR" 2>/dev/null || mkdir -p /Library/JianPan/Themes
-chmod 0755 /var/jb/Library/JianPan "$DIR" 2>/dev/null || true
+# 主目录：/var/mobile（roothide/rootless 都可见可写）；/var/jb 作次级
+DIR=/var/mobile/Library/JianPan/Themes
+mkdir -p "$DIR"
+chmod 0755 /var/mobile/Library/JianPan "$DIR" 2>/dev/null || true
+chown mobile:mobile /var/mobile/Library/JianPan "$DIR" 2>/dev/null || true
+mkdir -p /var/jb/Library/JianPan/Themes 2>/dev/null || true
 if [ ! -f "$DIR/README.txt" ]; then
   cat > "$DIR/README.txt" <<'TXT'
 「键盘」JianPan 主题目录
@@ -10,7 +13,7 @@ if [ ! -f "$DIR/README.txt" ]; then
 
 每个主题一个文件夹，例如：
 
-  Themes/我的主题/
+  /var/mobile/Library/JianPan/Themes/我的主题/
     KeyboardMainBG-Portrait-932h@3x.png     字母键盘（竖屏）
     KeyboardMainBG-Landscape-932h@3x.png    字母键盘（横屏）
     KeyboardNumbersBG-Portrait-932h@3x.png  数字键盘

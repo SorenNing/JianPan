@@ -2,7 +2,7 @@
 
 #define JP_DOMAIN @"com.ning.jianpan"
 #define JP_CHANGED @"com.ning.jianpan.changed"
-#define JP_THEMES_DIR @"/var/jb/Library/JianPan/Themes"
+#define JP_THEMES_DIR @"/var/mobile/Library/JianPan/Themes"
 
 @implementation JianPanRootListController
 
@@ -55,7 +55,8 @@
 // 多根扫描主题目录（与 tweak 一致）
 + (NSArray *)jpAllThemeDirs {
     NSArray *roots = @[JP_THEMES_DIR,
-                       @"/var/mobile/Library/JianPan/Themes",
+                       @"/var/jb/Library/JianPan/Themes",
+                       @"/var/jb/var/mobile/Library/JianPan/Themes",
                        @"/Library/JianPan/Themes"];
     NSMutableArray *out = [NSMutableArray array];
     NSMutableSet *seen = [NSMutableSet set];
