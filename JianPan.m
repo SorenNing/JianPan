@@ -237,30 +237,6 @@ static void JPReloadPrefs(void) {
 
 #pragma mark - 预设
 
-static NSArray *JPPresetNames(void) {
-    NSFileManager *fm = NSFileManager.defaultManager;
-    [fm createDirectoryAtPath:@JP_PRESETS_DIR withIntermediateDirectories:YES attributes:nil error:NULL];
-    NSArray *items = [fm contentsOfDirectoryAtPath:@JP_PRESETS_DIR error:NULL];
-    return [items filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self ENDSWITH '.plist'"]];
-}
-
-static void JPSavePreset(NSString *name) {
-    NSMutableDictionary *d = [NSMutableDictionary dictionary];
-    NSArray *keys = @[@"CustomBackgroundColourEnabled",@"CustomBackgroundColour",
-                      @"CustomTextColourEnabled",@"CustomTextColour",
-                      @"CustomKeyPopUpGradientEnabled",@"CustomKeyCapGradientStart",@"CustomKeyCapGradientEnd",
-                      @"CustomPredictionTextColourEnabled",@"CustomPredictionTextColour",
-                      @"CustomPredictionBarBackgroundColourEnabled",@"CustomPredictionBarBackgroundColour",
-                      @"CustomKeyTintEnabled",@"CustomKeyTintColour",
-                      @"CustomEmojiSearchBackgroundEnabled",@"CustomEmojiSearchBackground"];
-    for (NSString *k in keys) {
-        id v = (__bridge id)CFPreferencesCopyAppValue((__bridge CFStringRef)k, CFSTR(JP_DOMAIN));
-        if (v) d[k] = v;
-    }
-    [d writeToFile:[NSString stringWithFormat:@"%@/%@.plist", @JP_PRESETS_DIR, name] atomically:YES];
-    JPLog(@"preset saved: %@", name);
-}
-
 static void JPLoadPreset(NSString *name) {
     if (!name.length) return;
     NSDictionary *d = [NSDictionary dictionaryWithContentsOfFile:
@@ -370,12 +346,26 @@ static UIImage *JPImageForKey(NSString *key, BOOL landscape) {
     return nil;
 }
 
-static UIViewContentMode JPContentMode(void) {
+static UIImage *JPApplyContentMode(UIImage *img, CGFloat targetWidth) {
+    if (!img || targetWidth <= 0) return img;
+    CGFloat ratio = img.size.width / img.size.height;
     switch (jpContentModeInt) {
-        case 1: return UIViewContentModeScaleAspectFit;
-        case 2: return UIViewContentModeScaleAspectFill;
-        case 3: return UIViewContentModeCenter;
-        default: return UIViewContentModeScaleToFill;
+        case 1: {  // AspectFit：按宽等比，高度自适应（SplitImageView 会拉伸）→ 生成白边？直接返回
+            return img;
+        }
+        case 2: {  // AspectFill：裁剪到 targetWidth/ratio 高
+            CGFloat targetH = targetWidth / ratio;
+            CGSize sz = CGSizeMake(targetWidth, targetH);
+            UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc] initWithSize:sz];
+            return [r imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+                [img drawInRect:CGRectMake(0, 0, sz.width, sz.height)];
+            }];
+        }
+        case 3: {  // Center：原尺寸
+            return img;
+        }
+        default:
+            return img;  // ScaleToFill：交给 SplitImageView 拉伸
     }
 }
 
@@ -480,6 +470,7 @@ static void jp_hook_setImage(id self, SEL _cmd, UIImage *image, double width, id
             BOOL landscape = UIScreen.mainScreen.bounds.size.width > UIScreen.mainScreen.bounds.size.height;
             UIImage *theme = JPImageForKey(key, landscape);
             if (theme) {
+                theme = JPApplyContentMode(theme, width);
                 image = theme;
                 static int served = 0;
                 if (served++ < 30) JPLog(@"bg served: %@ (%@)", key, kpName);
@@ -700,8 +691,6 @@ static void jp_hook_cellSetImageTint(id self, SEL _cmd, UIColor *color) {
 }
 
 #pragma mark - 安装
-
-static void (*JPConfigChangedCB)(CFNotificationCenterRef, void *, CFStringRef, const void *, CFDictionaryRef);
 
 static void JPInstallHooks(void) {
     // 颜色核心：UIKBGetNamedColor
