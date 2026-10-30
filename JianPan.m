@@ -393,7 +393,6 @@ static UIImage *JPImageForKey(NSString *key, BOOL landscape) {
             }
         }
         // 前缀兜底：key 开头 + 含 orient 关键字的任意 png（trait/lang 段不匹配也能命中）
-        NSString *files = nil;
         NSArray *items = [fm contentsOfDirectoryAtPath:dir error:NULL];
         NSString *best = nil;
         for (NSString *f in items) {
