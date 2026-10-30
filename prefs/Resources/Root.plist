@@ -428,7 +428,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>键盘 (JianPan) 0.3
+			<string>键盘 (JianPan) 0.4
 作者: Ning
 实现方式照 Laetus 3.5.1 逆向（颜色劫持 UIKBGetNamedColor + 背景贴图 UIKBSplitImageView + 元素隐藏）。
 日志: /var/mobile/Library/JianPan.log</string>

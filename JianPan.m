@@ -412,6 +412,8 @@ static UIColor *(*orig_UIKBGetNamedColor)(CFStringRef name);
 
 static UIColor *fake_UIKBGetNamedColor(CFStringRef name) {
     @try {
+        if (name == NULL) return orig_UIKBGetNamedColor(name);
+        if (!jpEnabled) return orig_UIKBGetNamedColor(name);
         if (!name) return orig_UIKBGetNamedColor(name);
         NSString *n = (__bridge NSString *)name;
 
@@ -501,17 +503,14 @@ static void jp_hook_renderKeyContents(id self, SEL _cmd, id contents, id traits)
 // UIKBKeyView _populateLayer:withContents: — 键帽贴图层（Laetus 主通道）
 static IMP orig_populateLayer = NULL;
 static void jp_hook_populateLayer(id self, SEL _cmd, id layer, id contents) {
-    @try {
-        if (jpEnabled && jpHideKeyCaps && layer) {
-            // 隐藏 layer 的内容图形（保留视图结构避免布局崩）
-            if ([layer isKindOfClass:CALayer.class]) {
-                ((CALayer *)layer).contents = nil;
-                ((CALayer *)layer).hidden = YES;
-                return; // 不调原实现
-            }
-        }
-    } @catch (NSException *e) { JPLog(@"exc populate: %@", e); }
+    // 永不短路：先完整走原实现（layer 树必须完整，否则渲染崩），再按需隐藏
     ((void (*)(id, SEL, id, id))orig_populateLayer)(self, _cmd, layer, contents);
+    @try {
+        if (jpEnabled && jpHideKeyCaps && [layer isKindOfClass:CALayer.class]) {
+            CALayer *l = (CALayer *)layer;
+            l.hidden = YES;
+        }
+    } @catch (__unused NSException *e) {}
 }
 
 // UIKBKeyView layoutSubviews — 阴影清除（0.1 已有，保留）
@@ -543,40 +542,27 @@ static BOOL jp_hook_avoidsLangInd(id self, SEL _cmd) {
 
 static IMP orig_animScrubber = NULL;
 static void jp_hook_animScrubber(id self, SEL _cmd, CGRect rect) {
+    // 永不短路：照常动画，只把滑块视图藏掉
+    ((void (*)(id, SEL, CGRect))orig_animScrubber)(self, _cmd, rect);
     @try {
         if (jpEnabled && jpHideEmojiSlider) {
-            // 滑块动画直接不播
-            UIView *sv = objc_getAssociatedObject(self, "jp_scrub");
-            if (!sv) {
-                sv = objc_getAssociatedObject(self, @selector(scrubView));
-            }
-            (void)sv;
-            return; // 跳过原实现
+            id sv = [self valueForKey:@"scrubView"];
+            if ([sv isKindOfClass:UIView.class]) ((UIView *)sv).hidden = YES;
         }
     } @catch (__unused NSException *e) {}
-    ((void (*)(id, SEL, CGRect))orig_animScrubber)(self, _cmd, rect);
 }
 
+// touchDown 仅作轻量观察（不做 KVC，热路径保持纯净）
 static IMP orig_touchDownInfo = NULL;
 static void jp_hook_touchDownInfo(id self, SEL _cmd, id key, id info, CGPoint point, id ctx) {
-    @try {
-        if (jpEnabled && jpHideKeyPopups) {
-            // 弹出键 = touch 时展示的 variants popup；只记录但直接走原实现（popup 由 showPopupVariants 触发）
-            // 简单方案：设置期间置空 _flickPopupView
-            @try { [self setValue:nil forKey:@"_flickPopupView"]; } @catch (__unused NSException *e) {}
-        }
-    } @catch (__unused NSException *e) {}
     ((void (*)(id, SEL, id, id, CGPoint, id))orig_touchDownInfo)(self, _cmd, key, info, point, ctx);
 }
 
-static IMP orig_touchDown = NULL;
-static void jp_hook_touchDown(id self, SEL _cmd, id key, CGPoint point, id ctx) {
-    @try {
-        if (jpEnabled && jpHideKeyPopups) {
-            @try { [self setValue:nil forKey:@"_flickPopupView"]; } @catch (__unused NSException *e) {}
-        }
-    } @catch (__unused NSException *e) {}
-    ((void (*)(id, SEL, id, CGPoint, id))orig_touchDown)(self, _cmd, key, point, ctx);
+// popup 隐藏：拦 showPopupVariantsForKey:（头文件确认存在）
+static IMP orig_showPopupVariants = NULL;
+static void jp_hook_showPopupVariants(id self, SEL _cmd, id key) {
+    if (jpEnabled && jpHideKeyPopups) return;
+    ((void (*)(id, SEL, id))orig_showPopupVariants)(self, _cmd, key);
 }
 
 #pragma mark - Hook 5: 深浅色强制（UIKBRenderConfig.lightKeyboard）
@@ -773,12 +759,13 @@ static void JPInstallHooks(void) {
         SEL td1 = NSSelectorFromString(@"touchDownWithKey:withTouchInfo:atPoint:executionContext:");
         if (!orig_touchDownInfo && [star instancesRespondToSelector:td1]) {
             MSHookMessageEx(star, td1, (IMP)jp_hook_touchDownInfo, (IMP *)&orig_touchDownInfo);
+            JPLog(@"hook installed: LayoutStar touchDown (observe)");
         }
-        SEL td2 = NSSelectorFromString(@"touchDownWithKey:atPoint:executionContext:");
-        if (!orig_touchDown && [star instancesRespondToSelector:td2]) {
-            MSHookMessageEx(star, td2, (IMP)jp_hook_touchDown, (IMP *)&orig_touchDown);
+        SEL spv = NSSelectorFromString(@"showPopupVariantsForKey:");
+        if (!orig_showPopupVariants && [star instancesRespondToSelector:spv]) {
+            MSHookMessageEx(star, spv, (IMP)jp_hook_showPopupVariants, (IMP *)&orig_showPopupVariants);
+            JPLog(@"hook installed: LayoutStar showPopupVariants (popups)");
         }
-        if (orig_touchDownInfo || orig_touchDown) JPLog(@"hook installed: LayoutStar touchDown (popups)");
     }
 
     Class cfg = NSClassFromString(@"UIKBRenderConfig");
@@ -845,7 +832,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.3 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.4 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
