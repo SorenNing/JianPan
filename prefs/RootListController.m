@@ -72,7 +72,13 @@ static const void *JPColourKeyAssoc = &JPColourKeyAssoc;
     CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFPropertyListRef)hex,
                              (__bridge CFStringRef)kJPDomain);
     CFPreferencesAppSynchronize((__bridge CFStringRef)kJPDomain);
-    [self jpNotify];
+    // 自校验：立即读回确认落盘
+    CFPropertyListRef chk = CFPreferencesCopyAppValue((__bridge CFStringRef)key,
+                                                      (__bridge CFStringRef)kJPDomain);
+    NSString *back = chk ? [(__bridge id)chk copy] : nil;
+    if (chk) CFRelease(chk);
+    static int logged = 0;
+    if (logged++ < 12) NSLog(@"[JianPan] colour write %@ = %@ (readback %@)", key, hex, back ?: @"NIL");
 }
 
 -(NSString *)jpAssocKey:(UIColorPickerViewController *)vc {

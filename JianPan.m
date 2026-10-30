@@ -79,7 +79,7 @@ static BOOL jpSwitchPresetsWithDarkMode = NO;
 static NSString *jpThemeName = nil, *jpThemePath = nil;
 static NSString *jpHTMLThemeName = nil, *jpHTMLIndexPath = nil;
 static NSInteger jpGen = 0;
-static BOOL jpSafeMode = YES;   // 0.5 二分：YES=只装基线组
+static BOOL jpSafeMode = NO;    // 0.8 默认关闭（全部 hook）
 
 static BOOL JPBool(NSString *key, BOOL dflt) {
     CFPreferencesAppSynchronize(CFSTR(JP_DOMAIN));
@@ -228,7 +228,7 @@ static void JPReloadPrefs(void) {
     jpLightPreset = JPStr(@"LaetusPresetsLightMode");
     jpDarkPreset = JPStr(@"LaetusPresetsDarkMode");
     jpSwitchPresetsWithDarkMode = JPBool(@"SwitchPresetsWithDarkMode", NO);
-    jpSafeMode = JPBool(@"SafeMode", YES);
+    jpSafeMode = JPBool(@"SafeMode", NO);
     NSString *theme = JPStr(@"ActiveTheme");
     if (![jpThemeName isEqualToString:theme]) { jpThemeName = theme; }
     NSString *html = JPStr(@"ActiveHTMLTheme");
@@ -477,10 +477,20 @@ static void JPApplyHTMLToHost(UIView *host) {
 
 static UIColor *(*orig_UIKBGetNamedColor)(CFStringRef name);
 
+static NSMutableSet *jpSeenColourNames;
 static UIColor *fake_UIKBGetNamedColor(CFStringRef name) {
     @try {
         if (name == NULL) return orig_UIKBGetNamedColor(name);
         if (!jpEnabled) return orig_UIKBGetNamedColor(name);
+        // 诊断：收集真实颜色名（每进程限 60 条）
+        {
+            NSString *n = (__bridge NSString *)name;
+            if (!jpSeenColourNames) jpSeenColourNames = [NSMutableSet new];
+            if ([n length] < 64 && ![jpSeenColourNames containsObject:n] && jpSeenColourNames.count < 60) {
+                [jpSeenColourNames addObject:n];
+                JPLog(@"colourName: %@", n);
+            }
+        }
         if (!name) return orig_UIKBGetNamedColor(name);
         NSString *n = (__bridge NSString *)name;
 
@@ -925,7 +935,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.7 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.8 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
