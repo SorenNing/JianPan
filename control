@@ -1,6 +1,6 @@
 Package: com.ning.jianpan
 Name: 键盘
-Version: 0.5
+Version: 0.6
 Architecture: iphoneos-arm64e
 Description: 键盘美化（照 Laetus 逆向实现）：按 keyplane 命名的主题 PNG 铺满键盘背景 (iOS 15-17)
 Maintainer: Ning

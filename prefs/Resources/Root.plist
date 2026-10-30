@@ -28,7 +28,26 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>无 = 纯颜色；HTML = 动画网页背景；图片 = 相册选图；主题 = PNG 主题包。小组件模式不支持。</string>
+			<string>点击下方输入框弹出键盘，实时预览效果。</string>
+			<key>label</key>
+			<string>键盘测试区</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>key</key>
+			<string>TestAreaDummy</string>
+			<key>defaults</key>
+			<string>com.ning.jianpan.test</string>
+			<key>placeholder</key>
+			<string>在这里打字试试键盘 →</string>
+		</dict>
+
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>无 = 纯颜色；HTML = 动画网页背景；图片 = 相册选图；主题 = PNG 主题包（小组件不支持）。\n主题路径：/var/mobile/Library/JianPan/Themes/&lt;主题名&gt;/</string>
 			<key>label</key>
 			<string>主题模式</string>
 		</dict>
@@ -129,6 +148,16 @@
 			<string>背景颜色启用</string>
 		</dict>
 		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomBackgroundColour</string>
+			<key>label</key>
+			<string>背景颜色 — 选择颜色…</string>
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -139,6 +168,16 @@
 			<string>CustomTextColourEnabled</string>
 			<key>label</key>
 			<string>文本颜色启用</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomTextColour</string>
+			<key>label</key>
+			<string>文本颜色 — 选择颜色…</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -153,6 +192,16 @@
 			<string>预测栏文本颜色启用</string>
 		</dict>
 		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomPredictionTextColour</string>
+			<key>label</key>
+			<string>预测栏文本 — 选择颜色…</string>
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -163,6 +212,16 @@
 			<string>CustomPredictionBarBackgroundColourEnabled</string>
 			<key>label</key>
 			<string>预测栏背景颜色启用</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomPredictionBarBackgroundColour</string>
+			<key>label</key>
+			<string>预测栏背景 — 选择颜色…</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -177,6 +236,16 @@
 			<string>按键色调颜色启用</string>
 		</dict>
 		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomKeyTintColour</string>
+			<key>label</key>
+			<string>按键色调 — 选择颜色…</string>
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
@@ -189,10 +258,52 @@
 			<string>表情搜索背景颜色启用</string>
 		</dict>
 		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomEmojiSearchBackground</string>
+			<key>label</key>
+			<string>表情搜索背景 — 选择颜色…</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>CustomKeyPopUpGradientEnabled</string>
+			<key>label</key>
+			<string>按键弹出渐变启用</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomKeyCapGradientStart</string>
+			<key>label</key>
+			<string>弹出渐变开始 — 选择颜色…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>jpPickColour:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>jpColourKey</key>
+			<string>CustomKeyCapGradientEnd</string>
+			<key>label</key>
+			<string>弹出渐变结束 — 选择颜色…</string>
+		</dict>
+		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>注意：颜色值当前在 tweak 内置的预设编辑器中修改，或直接编辑预设 plist（格式 #RRGGBB:alpha）。下一版将加入可视化取色器。</string>
+			<string>点「选择颜色…」用系统取色器选取，实时生效（无需注销）。</string>
 			<key>label</key>
 			<string>颜色值</string>
 		</dict>

@@ -1,6 +1,7 @@
 #import "RootListController.h"
+#import <objc/runtime.h>
 
-@interface JianPanRootListController () <UIImagePickerControllerDelegate, UINavigationControllerDelegate>
+@interface JianPanRootListController () <UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIColorPickerViewControllerDelegate>
 @end
 
 #define JP_DOMAIN @"com.ning.jianpan"
@@ -9,6 +10,89 @@ static NSString * const kJPDomain = @"com.ning.jianpan";
 #define JP_THEMES_DIR @"/var/mobile/Library/JianPan/Themes"
 
 @implementation JianPanRootListController
+
+#pragma mark - 颜色选择（系统 UIColorPickerViewController，iOS14+）
+
+-(NSString *)jpColourLabelForKey:(NSString *)key {
+    NSDictionary *map = @{
+        @"CustomBackgroundColour": @"背景颜色",
+        @"CustomTextColour": @"文本颜色",
+        @"CustomPredictionTextColour": @"预测栏文本",
+        @"CustomPredictionBarBackgroundColour": @"预测栏背景",
+        @"CustomKeyTintColour": @"按键色调",
+        @"CustomEmojiSearchBackground": @"表情搜索背景",
+        @"CustomKeyCapGradientStart": @"弹出渐变开始",
+        @"CustomKeyCapGradientEnd": @"弹出渐变结束",
+    };
+    return map[key] ?: key;
+}
+
+-(UIColor *)jpColourValueForKey:(NSString *)key {
+    NSString *spec = [self jpPrefsString:key];
+    if (!spec.length) return nil;
+    NSString *hex = spec, *alphaPart = nil;
+    NSRange colon = [spec rangeOfString:@":"];
+    if (colon.location != NSNotFound) { hex = [spec substringToIndex:colon.location]; alphaPart = [spec substringFromIndex:colon.location+1]; }
+    hex = [hex stringByReplacingOccurrencesOfString:@"#" withString:@""];
+    if (hex.length != 6) return nil;
+    unsigned r=0,g=0,b=0;
+    sscanf([hex substringToIndex:2].UTF8String, "%x", &r);
+    sscanf([hex substringWithRange:NSMakeRange(2,2)].UTF8String, "%x", &g);
+    sscanf([hex substringFromIndex:4].UTF8String, "%x", &b);
+    CGFloat a = alphaPart ? [alphaPart doubleValue] : 1.0;
+    return [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:a];
+}
+
+-(void)jpPickColour:(PSSpecifier *)specifier {
+    NSString *key = [specifier propertyForKey:@"jpColourKey"] ?: [specifier propertyForKey:@"key"];
+    if (!key.length) return;
+    // 从 defaults 键剥出颜色键（开关键 = 颜色键 + Enabled）
+    if ([key hasSuffix:@"Enabled"]) key = [key substringToIndex:key.length - 7];
+
+    UIColorPickerViewController *picker = [[UIColorPickerViewController alloc] init];
+    picker.supportsAlpha = YES;
+    picker.title = [self jpColourLabelForKey:key];
+    UIColor *cur = [self jpColourValueForKey:key];
+    if (cur) picker.selectedColor = cur;
+    objc_setAssociatedObject(picker, "jpColourKey", key, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    picker.delegate = self;
+
+    UIViewController *presenter = self;
+    while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+    [presenter presentViewController:picker animated:YES completion:nil];
+}
+
+-(void)colorPickerControllerDidFinish:(UIColorPickerViewController *)viewController {
+    NSString *key = objc_getAssociatedObject(viewController, "jpColourKey");
+    if (!key) return;
+    UIColor *c = viewController.selectedColor;
+    CGFloat r=0,g=0,b=0,a=0;
+    [c getRed:&r green:&g blue:&b alpha:&a];
+    NSString *hex = [NSString stringWithFormat:@"#%02X%02X%02X:%.2f",
+        (int)round(r*255), (int)round(g*255), (int)round(b*255), a];
+    CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFPropertyListRef)hex,
+                             (__bridge CFStringRef)kJPDomain);
+    CFPreferencesAppSynchronize((__bridge CFStringRef)kJPDomain);
+    [self jpNotify];
+    [self jpAlert:[NSString stringWithFormat:@"%@ 已设置", [self jpColourLabelForKey:key]]
+          message:hex copyPath:nil];
+}
+
+-(void)colorPickerControllerDidSelectColor:(UIColorPickerViewController *)viewController {
+    // 实时预览：滑动时也写偏好（节流）
+    NSString *key = objc_getAssociatedObject(viewController, "jpColourKey");
+    if (!key) return;
+    UIColor *c = viewController.selectedColor;
+    CGFloat r=0,g=0,b=0,a=0;
+    [c getRed:&r green:&g blue:&b alpha:&a];
+    NSString *hex = [NSString stringWithFormat:@"#%02X%02X%02X:%.2f",
+        (int)round(r*255), (int)round(g*255), (int)round(b*255), a];
+    CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFPropertyListRef)hex,
+                             (__bridge CFStringRef)kJPDomain);
+    CFPreferencesAppSynchronize((__bridge CFStringRef)kJPDomain);
+    [self jpNotify];
+}
+
 
 -(instancetype)init {
     if ((self = [super init])) self.title = @"键盘";
