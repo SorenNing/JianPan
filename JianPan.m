@@ -532,6 +532,14 @@ static UIColor *fake_UIKBGetNamedColor(CFStringRef name) {
 static IMP orig_setImage = NULL;
 static void jp_hook_setImage(id self, SEL _cmd, UIImage *image, double width, id keyplane) {
     @try {
+        static int entries = 0;
+        if (entries++ < 20) {
+            JPLog(@"setImage entry #%d: self=%@ kp=%@ width=%.0f img=%@ mode=%ld",
+                  entries, NSStringFromClass([self class]),
+                  keyplane ? NSStringFromClass([keyplane class]) : @"(nil)",
+                  width, image ? NSStringFromClass([image class]) : @"(nil)",
+                  (long)jpBackgroundMode);
+        }
         // 只有键盘背景视图（UIKBBackgroundView）才换图；
         // 其它 SplitImageView 子类（键帽贴图等）必须放行，否则键帽全部消失
         Class bgCls = NSClassFromString(@"UIKBBackgroundView");
@@ -671,6 +679,8 @@ static IMP orig_didChangeKeyplane = NULL;
 static void jp_hook_didChangeKeyplane(id self, SEL _cmd, id context) {
     ((void (*)(id, SEL, id))orig_didChangeKeyplane)(self, _cmd, context);
     @try {
+        static int kpEntries = 0;
+        if (kpEntries++ < 10) JPLog(@"didChangeKeyplane entry #%d self=%@", kpEntries, NSStringFromClass([self class]));
         if (!jpEnabled) return;
         static int fired = 0;
         fired++;
