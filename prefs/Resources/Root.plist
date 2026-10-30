@@ -519,7 +519,7 @@
 			<key>key</key>
 			<string>SafeMode</string>
 			<key>label</key>
-			<string>安全模式（排查闪退用）</string>
+			<string>安全模式（=只装基线）</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -599,7 +599,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>键盘 (JianPan) 0.9
+			<string>键盘 (JianPan) 0.9.1
 作者: Ning
 实现方式照 Laetus 3.5.1 逆向。
 日志: /var/mobile/Library/JianPan.log</string>

@@ -229,9 +229,9 @@ static void JPReloadPrefs(void) {
     jpLightPreset = JPStr(@"LaetusPresetsLightMode");
     jpDarkPreset = JPStr(@"LaetusPresetsDarkMode");
     jpSwitchPresetsWithDarkMode = JPBool(@"SwitchPresetsWithDarkMode", NO);
-    jpSafeMode = JPBool(@"SafeMode", YES);
+    jpSafeMode = JPBool(@"SafeMode", NO);
     jpHookGroup = JPInt(@"HookGroup", 0);
-    if (JPBool(@"SafeMode", YES) == NO) jpHookGroup = 15;  // SafeMode 关 = 全开
+    if (jpSafeMode) jpHookGroup = 0;  // SafeMode 开 = 强制只基线
     NSString *theme = JPStr(@"ActiveTheme");
     if (![jpThemeName isEqualToString:theme]) { jpThemeName = theme; }
     NSString *html = JPStr(@"ActiveHTMLTheme");
@@ -812,9 +812,9 @@ static void JPInstallHooks(void) {
 
     // ---- 分组开关（HookGroup 位掩码；0=只装基线）----
     BOOL g1 = jpHookGroup & 1, g2 = jpHookGroup & 2, g3 = jpHookGroup & 4, g4 = jpHookGroup & 8;
-    JPLog(@"hook groups: render=%d element=%d config=%d host=%d (group=%ld, safe=%d)",
-          g1, g2, g3, g4, (long)jpHookGroup, jpSafeMode);
-    if (jpSafeMode) { JPLog(@"safe mode: skipping optional hooks"); return; }
+    JPLog(@"hook groups: render=%d element=%d config=%d host=%d (group=%ld)",
+          g1, g2, g3, g4, (long)jpHookGroup);
+    if (jpHookGroup == 0) { JPLog(@"baseline-only (group=0): skipping optional hooks"); return; }
 
     // 组1 渲染：renderKeyContents + _populateLayer
     if (g1) {
@@ -948,7 +948,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.9 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.9.1 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
