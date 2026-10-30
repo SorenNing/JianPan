@@ -43,18 +43,19 @@ static NSString * const kJPDomain = @"com.ning.jianpan";
     return [UIColor colorWithRed:r/255.0 green:g/255.0 blue:b/255.0 alpha:a];
 }
 
+static const void *JPColourKeyAssoc = &JPColourKeyAssoc;
+
 -(void)jpPickColour:(PSSpecifier *)specifier {
     NSString *key = [specifier propertyForKey:@"jpColourKey"] ?: [specifier propertyForKey:@"key"];
-    if (!key.length) return;
-    // 从 defaults 键剥出颜色键（开关键 = 颜色键 + Enabled）
     if ([key hasSuffix:@"Enabled"]) key = [key substringToIndex:key.length - 7];
+    if (!key.length) return;
 
     UIColorPickerViewController *picker = [[UIColorPickerViewController alloc] init];
     picker.supportsAlpha = YES;
     picker.title = [self jpColourLabelForKey:key];
     UIColor *cur = [self jpColourValueForKey:key];
-    if (cur) picker.selectedColor = cur;
-    objc_setAssociatedObject(picker, "jpColourKey", key, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    picker.selectedColor = cur ?: UIColor.blackColor;
+    objc_setAssociatedObject(picker, JPColourKeyAssoc, key, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     picker.delegate = self;
 
     UIViewController *presenter = self;
@@ -62,10 +63,8 @@ static NSString * const kJPDomain = @"com.ning.jianpan";
     [presenter presentViewController:picker animated:YES completion:nil];
 }
 
--(void)colorPickerControllerDidFinish:(UIColorPickerViewController *)viewController {
-    NSString *key = objc_getAssociatedObject(viewController, "jpColourKey");
-    if (!key) return;
-    UIColor *c = viewController.selectedColor;
+-(void)jpWriteColour:(NSString *)key colour:(UIColor *)c {
+    if (!key.length || !c) return;
     CGFloat r=0,g=0,b=0,a=0;
     [c getRed:&r green:&g blue:&b alpha:&a];
     NSString *hex = [NSString stringWithFormat:@"#%02X%02X%02X:%.2f",
@@ -74,23 +73,21 @@ static NSString * const kJPDomain = @"com.ning.jianpan";
                              (__bridge CFStringRef)kJPDomain);
     CFPreferencesAppSynchronize((__bridge CFStringRef)kJPDomain);
     [self jpNotify];
-    [self jpAlert:[NSString stringWithFormat:@"%@ 已设置", [self jpColourLabelForKey:key]]
-          message:hex copyPath:nil];
+}
+
+-(NSString *)jpAssocKey:(UIColorPickerViewController *)vc {
+    return objc_getAssociatedObject(vc, JPColourKeyAssoc);
+}
+
+-(void)colorPickerControllerDidFinish:(UIColorPickerViewController *)viewController {
+    NSString *key = [self jpAssocKey:viewController];
+    [self jpWriteColour:key colour:viewController.selectedColor];
 }
 
 -(void)colorPickerControllerDidSelectColor:(UIColorPickerViewController *)viewController {
-    // 实时预览：滑动时也写偏好（节流）
-    NSString *key = objc_getAssociatedObject(viewController, "jpColourKey");
-    if (!key) return;
-    UIColor *c = viewController.selectedColor;
-    CGFloat r=0,g=0,b=0,a=0;
-    [c getRed:&r green:&g blue:&b alpha:&a];
-    NSString *hex = [NSString stringWithFormat:@"#%02X%02X%02X:%.2f",
-        (int)round(r*255), (int)round(g*255), (int)round(b*255), a];
-    CFPreferencesSetAppValue((__bridge CFStringRef)key, (__bridge CFPropertyListRef)hex,
-                             (__bridge CFStringRef)kJPDomain);
-    CFPreferencesAppSynchronize((__bridge CFStringRef)kJPDomain);
-    [self jpNotify];
+    // 滑动实时写（免注销生效）
+    NSString *key = [self jpAssocKey:viewController];
+    [self jpWriteColour:key colour:viewController.selectedColor];
 }
 
 

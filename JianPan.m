@@ -289,6 +289,37 @@ static UIImage *JPLoadImage(NSString *path) {
     return [UIImage imageWithCGImage:raw.CGImage scale:UIScreen.mainScreen.scale orientation:UIImageOrientationUp];
 }
 
+// 主题目录可能把图放根目录或 Images/ 子目录（Laetus 官方主题格式），多路径查找
+static NSArray *JPThemeSearchDirs(void) {
+    if (!jpThemePath) return @[];
+    NSFileManager *fm = NSFileManager.defaultManager;
+    NSMutableArray *dirs = [NSMutableArray arrayWithObject:jpThemePath];
+    for (NSString *sub in @[@"Images", @"images", @"Image"]) {
+        NSString *p = [jpThemePath stringByAppendingPathComponent:sub];
+        BOOL isDir = NO;
+        if ([fm fileExistsAtPath:p isDirectory:&isDir] && isDir) [dirs addObject:p];
+    }
+    return dirs;
+}
+
+// 设备语言（zh_Hans 等），用于 Laetus 命名的语言后缀
+static NSString *JPKeyboardLanguage(void) {
+    static NSString *lang;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSArray *modes = [UITextInputMode activeInputModes];
+        for (UITextInputMode *m in modes) {
+            if ([m respondsToSelector:@selector(primaryLanguage)]) {
+                NSString *l = [m performSelector:@selector(primaryLanguage)];
+                if (l.length) { lang = l; break; }
+            }
+        }
+        if (!lang.length) lang = @"en_US";
+        JPLog(@"keyboard language: %@", lang);
+    });
+    return lang;
+}
+
 static NSMutableDictionary *jpImageCache;
 static UIImage *JPImageForKey(NSString *key, BOOL landscape) {
     if (!key.length) return nil;
@@ -314,35 +345,70 @@ static UIImage *JPImageForKey(NSString *key, BOOL landscape) {
     NSFileManager *fm = NSFileManager.defaultManager;
     NSString *orient = landscape ? @"Landscape" : @"Portrait";
     NSString *h = JPHeightSuffix();
+    NSString *lang = JPKeyboardLanguage();
     NSArray *scales = @[@"@3x", @"@2x", @""];
+
+    // Laetus 命名段（全部可选，从全量到最简逐级剥离）：
+    //   Key[-trait-X][-lang][-orient][-height][scale].png / Key[-lang][-orient][-height]...
+    // 实际顺序（真实主题样本）：KeyboardNumbersKeyPlanePortrait-it-zh_Hans-896h@3x.png
+    //                          KeyboardLettersKeyPlane...trait-es_CO-896h@3x.png
+    // 段序不固定 → 生成 name 组合后用"前缀匹配目录扫描"而不是逐个 fileExists：
+    //   候选段集 = [orient] × [lang] × [h] 的所有子集 + scale 后缀
     NSMutableArray *names = [NSMutableArray array];
-    for (NSString *sc in scales) if (h) [names addObject:[NSString stringWithFormat:@"%@%@-%@-%@.png", key, sc, orient, h]];
-    for (NSString *sc in scales) [names addObject:[NSString stringWithFormat:@"%@%@-%@.png", key, sc, orient]];
-    for (NSString *sc in scales) if (h) [names addObject:[NSString stringWithFormat:@"%@%@-%@.png", key, sc, h]];
-    for (NSString *sc in scales) [names addObject:[NSString stringWithFormat:@"%@%@.png", key, sc]];
-    if ([h isEqualToString:@"932h"]) {
+    NSArray *langs = lang.length ? @[lang, @""] : @[@""];
+    for (NSString *o in (@[orient, @""])) {
+        for (NSString *l in langs) {
+            for (NSString *hh in (h ? @[h, @""] : @[@""])) {
+                for (NSString *sc in scales) {
+                    NSMutableString *n = [NSMutableString stringWithString:key];
+                    if (o.length) [n appendFormat:@"-%@", o];
+                    if (l.length) [n appendFormat:@"-%@", l];
+                    if (hh.length) [n appendFormat:@"-%@", hh];
+                    [n appendFormat:@"%@.png", sc];
+                    [names addObject:n];
+                    // trait-xx_YY 变体：语言国别段（es_CO）——用通配前缀匹配兜底（见下）
+                }
+            }
+        }
+    }
+    // 屏高映射兜底（926→896 / 844→812）
+    if ([h isEqualToString:@"932h"] || [h isEqualToString:@"926h"]) {
         for (NSString *sc in scales) {
-            [names addObject:[NSString stringWithFormat:@"%@%@-%@-896h.png", key, sc, orient]];
-            [names addObject:[NSString stringWithFormat:@"%@%@-896h.png", key, sc]];
+            [names addObject:[NSString stringWithFormat:@"%@-%@-896h%@.png", key, orient, sc]];
+            [names addObject:[NSString stringWithFormat:@"%@-896h%@.png", key, sc]];
         }
     } else if ([h isEqualToString:@"844h"]) {
         for (NSString *sc in scales) {
-            [names addObject:[NSString stringWithFormat:@"%@%@-%@-812h.png", key, sc, orient]];
-            [names addObject:[NSString stringWithFormat:@"%@%@-812h.png", key, sc]];
+            [names addObject:[NSString stringWithFormat:@"%@-%@-812h%@.png", key, orient, sc]];
+            [names addObject:[NSString stringWithFormat:@"%@-812h%@.png", key, sc]];
         }
     }
-    for (NSString *n in names) {
-        NSString *path = [jpThemePath stringByAppendingPathComponent:n];
-        if ([fm fileExistsAtPath:path]) {
-            UIImage *img = JPLoadImage(path);
-            if (img) { jpImageCache[cacheKey] = img; return img; }
+
+    for (NSString *dir in JPThemeSearchDirs()) {
+        for (NSString *n in names) {
+            NSString *path = [dir stringByAppendingPathComponent:n];
+            if ([fm fileExistsAtPath:path]) {
+                UIImage *img = JPLoadImage(path);
+                if (img) { jpImageCache[cacheKey] = img; return img; }
+            }
         }
-    }
-    NSArray *files = [fm contentsOfDirectoryAtPath:jpThemePath error:NULL];
-    for (NSString *f in files) {
-        if ([f hasPrefix:key] && [f.pathExtension isEqualToString:@"png"]) {
-            UIImage *img = JPLoadImage([jpThemePath stringByAppendingPathComponent:f]);
-            if (img) { jpImageCache[cacheKey] = img; JPLog(@"fallback matched: %@", f); return img; }
+        // 前缀兜底：key 开头 + 含 orient 关键字的任意 png（trait/lang 段不匹配也能命中）
+        NSString *files = nil;
+        NSArray *items = [fm contentsOfDirectoryAtPath:dir error:NULL];
+        NSString *best = nil;
+        for (NSString *f in items) {
+            if (![f.pathExtension.lowercaseString isEqualToString:@"png"]) continue;
+            if (![f hasPrefix:key]) continue;
+            if (orient.length && ![f containsString:orient]) continue;  // 方向必须匹配
+            if (!best || f.length > best.length) best = f;              // 名字最长=段最全
+        }
+        if (best) {
+            UIImage *img = JPLoadImage([dir stringByAppendingPathComponent:best]);
+            if (img) {
+                jpImageCache[cacheKey] = img;
+                JPLog(@"prefix matched: %@ (dir %@)", best, dir.lastPathComponent);
+                return img;
+            }
         }
     }
     return nil;
@@ -467,6 +533,13 @@ static UIColor *fake_UIKBGetNamedColor(CFStringRef name) {
 static IMP orig_setImage = NULL;
 static void jp_hook_setImage(id self, SEL _cmd, UIImage *image, double width, id keyplane) {
     @try {
+        // 只有键盘背景视图（UIKBBackgroundView）才换图；
+        // 其它 SplitImageView 子类（键帽贴图等）必须放行，否则键帽全部消失
+        Class bgCls = NSClassFromString(@"UIKBBackgroundView");
+        if (bgCls && ![self isKindOfClass:bgCls]) {
+            ((void (*)(id, SEL, UIImage *, double, id))orig_setImage)(self, _cmd, image, width, keyplane);
+            return;
+        }
         if (jpEnabled && keyplane) {
             NSString *kpName = nil;
             @try { kpName = [keyplane valueForKey:@"name"]; } @catch (__unused NSException *e) {}
@@ -843,7 +916,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.5 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.7 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
