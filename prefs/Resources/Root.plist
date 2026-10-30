@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>照 Laetus 方式实现的键盘美化。把按 keyplane 命名的 PNG 放进主题文件夹，铺满键盘背景。</string>
+			<key>label</key>
+			<string>键盘</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.ning.jianpan</string>
+			<key>key</key>
+			<string>Enabled</string>
+			<key>label</key>
+			<string>启用</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>未选择时自动使用第一个主题文件夹。切换后重新弹出键盘生效。</string>
+			<key>label</key>
+			<string>主题</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>pickTheme:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>选择主题…</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>listThemes:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>查看已装主题</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>openThemesFolder:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>打开主题目录</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>主题图命名（全部可选后缀）：
+KeyboardMainBG / KeyboardNumbersBG / KeyboardEmojiBG / KeyboardNumberPadBG / KeyboardAutoFillBG / KeyboardPickerBG / KeyboardDictationBG
++ (-Portrait | -Landscape) + (-932h|-896h|-852h|-844h|-812h|-736h|-667h) + (@3x|@2x) + .png
+例：KeyboardMainBG-Portrait-932h@3x.png
+屏高后缀不匹配会自动降级；无方向后缀 = 双向通用。</string>
+			<key>label</key>
+			<string>命名规则</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>键盘 (JianPan)
+作者: Ning
+实现方式照 Laetus 逆向结论：hook UIKBSplitImageView 背景贴图入口 + keyplane 切换跟踪。
+日志: /var/mobile/Library/JianPan.log</string>
+			<key>label</key>
+			<string>关于</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>键盘</string>
+</dict>
+</plist>

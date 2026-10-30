@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+DIR=/var/jb/Library/JianPan/Themes
+mkdir -p "$DIR" 2>/dev/null || mkdir -p /Library/JianPan/Themes
+chmod 0755 /var/jb/Library/JianPan "$DIR" 2>/dev/null || true
+if [ ! -f "$DIR/README.txt" ]; then
+  cat > "$DIR/README.txt" <<'TXT'
+「键盘」JianPan 主题目录
+========================================
+
+每个主题一个文件夹，例如：
+
+  Themes/我的主题/
+    KeyboardMainBG-Portrait-932h@3x.png     字母键盘（竖屏）
+    KeyboardMainBG-Landscape-932h@3x.png    字母键盘（横屏）
+    KeyboardNumbersBG-Portrait-932h@3x.png  数字键盘
+    KeyboardEmojiBG-Portrait-932h@3x.png    Emoji 键盘
+    KeyboardDictationBG-Portrait-932h@3x.png 听写
+
+命名规则（照系统 keyplane 资源约定）：
+  <键名>(-Portrait|-Landscape)(-屏高h)(@3x|@2x).png
+
+键名：KeyboardMainBG / KeyboardNumbersBG / KeyboardEmojiBG /
+      KeyboardNumberPadBG / KeyboardAutoFillBG / KeyboardPickerBG /
+      KeyboardDictationBG
+
+屏高（可选）：932h / 896h / 852h / 844h / 812h / 736h / 667h
+不匹配会自动降级到通用尺寸；@3x 优先于 @2x 优先于无后缀。
+
+放好后到 设置 → 键盘 → 选择主题，重新弹出键盘生效。
+TXT
+  chmod 0644 "$DIR/README.txt"
+fi
+exit 0
