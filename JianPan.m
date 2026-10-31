@@ -115,7 +115,7 @@ static NSString *JPStr(NSString *key) {
 #pragma mark - 颜色解析（Laetus 同格式 "#RRGGBB:alpha"）
 
 static UIColor *JPParseColour(NSString *spec) {
-    if (!spec.length) return nil;
+    if (!spec.length) return nil; // 调用方在开关开启时保证 spec 非空（见 JPReloadPrefs 默认值）
     NSString *hex = spec, *alphaPart = nil;
     NSRange colon = [spec rangeOfString:@":"];
     if (colon.location != NSNotFound) {
@@ -207,14 +207,14 @@ static void JPReloadPrefs(void) {
     jpColPredBgOn = JPBool(@"CustomPredictionBarBackgroundColourEnabled", NO);
     jpColTintOn = JPBool(@"CustomKeyTintEnabled", NO);
     jpColEmojiSearchOn = JPBool(@"CustomEmojiSearchBackgroundEnabled", NO);
-    jpColBg = JPStr(@"CustomBackgroundColour");
-    jpColText = JPStr(@"CustomTextColour");
-    jpColPredText = JPStr(@"CustomPredictionTextColour");
-    jpColPredBg = JPStr(@"CustomPredictionBarBackgroundColour");
-    jpColTint = JPStr(@"CustomKeyTintColour");
-    jpColEmojiSearch = JPStr(@"CustomEmojiSearchBackground");
-    jpColGradStart = JPStr(@"CustomKeyCapGradientStart");
-    jpColGradEnd = JPStr(@"CustomKeyCapGradientEnd");
+    jpColBg = JPStr(@"CustomBackgroundColour") ?: @"#FFFFFF:1.00";
+    jpColText = JPStr(@"CustomTextColour") ?: @"#000000:1.00";
+    jpColPredText = JPStr(@"CustomPredictionTextColour") ?: @"#000000:1.00";
+    jpColPredBg = JPStr(@"CustomPredictionBarBackgroundColour") ?: @"#FFFFFF:1.00";
+    jpColTint = JPStr(@"CustomKeyTintColour") ?: @"#007AFF:1.00";
+    jpColEmojiSearch = JPStr(@"CustomEmojiSearchBackground") ?: @"#FFFFFF:1.00";
+    jpColGradStart = JPStr(@"CustomKeyCapGradientStart") ?: @"#FFFFFF:1.00";
+    jpColGradEnd = JPStr(@"CustomKeyCapGradientEnd") ?: @"#DDDDDD:1.00";
     jpHideKeyShadows = JPBool(@"HideKeyShadows", NO);
     jpHideKeyCaps = JPBool(@"HideKeyCaps", NO);
     jpHideKeyPopups = JPBool(@"HideKeyPopups", NO);
@@ -230,8 +230,8 @@ static void JPReloadPrefs(void) {
     jpDarkPreset = JPStr(@"LaetusPresetsDarkMode");
     jpSwitchPresetsWithDarkMode = JPBool(@"SwitchPresetsWithDarkMode", NO);
     jpSafeMode = JPBool(@"SafeMode", NO);
-    jpHookGroup = JPInt(@"HookGroup", 0);
-    if (jpSafeMode) jpHookGroup = 0;  // SafeMode 开 = 强制只基线
+    jpHookGroup = JPInt(@"HookGroup", 15);   // 默认全开（功能优先；闪退排查再降级）
+    if (jpSafeMode) jpHookGroup = 0;         // SafeMode 开 = 只基线
     NSString *theme = JPStr(@"ActiveTheme");
     if (![jpThemeName isEqualToString:theme]) { jpThemeName = theme; }
     NSString *html = JPStr(@"ActiveHTMLTheme");
@@ -497,42 +497,45 @@ static UIColor *fake_UIKBGetNamedColor(CFStringRef name) {
         if (!name) return orig_UIKBGetNamedColor(name);
         NSString *n = (__bridge NSString *)name;
 
-        // 背景（键盘底色）
-        if (jpColBgOn && jpBackgroundMode == 0) {
-            NSArray *bgNames = @[@"keyboardBackgroundLightColor", @"keyboardBackgroundDarkColor",
-                                 @"keyboardBackgroundColor", @"secondaryKeyboardBackgroundColor"];
-            if ([bgNames containsObject:n]) {
-                UIColor *c = JPParseColour(jpColBg);
-                if (c) return c;
-            }
+        // 宽关键词匹配（对照原版"全局换色"需求；避免误伤先排除无关系统色）
+        BOOL looksKeyboard = [n containsString:@"keyboard"] || [n containsString:@"Keyboard"] ||
+                             [n containsString:@"prediction"] || [n containsString:@"Prediction"] ||
+                             [n containsString:@"Key"] || [n containsString:@"Emoji"] ||
+                             [n containsString:@"keycap"] || [n containsString:@"KeyCap"];
+        if (!looksKeyboard) return orig_UIKBGetNamedColor(name);
+
+        // 背景（键盘底色）—— mode=0（纯色模式）生效
+        if (jpColBgOn && jpBackgroundMode == 0 &&
+            ([n containsString:@"Background"] || [n containsString:@"background"])) {
+            UIColor *c = JPParseColour(jpColBg);
+            if (c) return c;
         }
-        // 文本/键帽文字
-        if (jpColTextOn) {
-            NSArray *txtNames = @[@"keyboardKeyTextLightColor", @"keyboardKeyTextDarkColor",
-                                  @"keyboardKeyTextColor", @"keyboardAlternateTextLightColor",
-                                  @"keyboardAlternateTextDarkColor", @"keyboardAlternateTextColor"];
-            if ([txtNames containsObject:n]) {
+        // 文本/键帽文字（排除背景类）
+        if (jpColTextOn && ([n containsString:@"Text"] || [n containsString:@"text"] || [n containsString:@"Glyph"])) {
+            if (![n containsString:@"Background"] && ![n containsString:@"background"]) {
                 UIColor *c = JPParseColour(jpColText);
                 if (c) return c;
             }
         }
-        // 键色调（按键按下高亮）
-        if (jpColTintOn && ([n hasPrefix:@"keyboardKeyTintColor"] || [n isEqualToString:@"keyboardKeyHighlightColor"])) {
+        // 键色调
+        if (jpColTintOn && [n containsString:@"Tint"]) {
             UIColor *c = JPParseColour(jpColTint);
             if (c) return c;
         }
         // 预测栏背景
-        if (jpColPredBgOn && ([n containsString:@"PredictionBarBackground"] || [n containsString:@"predictionBarBackground"])) {
+        if (jpColPredBgOn && [n.lowercaseString containsString:@"prediction"] &&
+            ([n containsString:@"Background"] || [n containsString:@"background"])) {
             UIColor *c = JPParseColour(jpColPredBg);
             if (c) return c;
         }
         // 预测栏文本
-        if (jpColPredTextOn && ([n containsString:@"PredictionText"] || [n containsString:@"predictionText"])) {
+        if (jpColPredTextOn && [n.lowercaseString containsString:@"prediction"] &&
+            ([n containsString:@"Text"] || [n containsString:@"text"])) {
             UIColor *c = JPParseColour(jpColPredText);
             if (c) return c;
         }
         // Emoji 搜索背景
-        if (jpColEmojiSearchOn && ([n containsString:@"EmojiSearch"] || [n containsString:@"emojiSearch"])) {
+        if (jpColEmojiSearchOn && [n.lowercaseString containsString:@"emojisearch"]) {
             UIColor *c = JPParseColour(jpColEmojiSearch);
             if (c) return c;
         }
@@ -553,10 +556,11 @@ static void jp_hook_setImage(id self, SEL _cmd, UIImage *image, double width, id
                   width, image ? NSStringFromClass([image class]) : @"(nil)",
                   (long)jpBackgroundMode);
         }
-        // 只有键盘背景视图（UIKBBackgroundView）才换图；
-        // 其它 SplitImageView 子类（键帽贴图等）必须放行，否则键帽全部消失
-        Class bgCls = NSClassFromString(@"UIKBBackgroundView");
-        if (bgCls && ![self isKindOfClass:bgCls]) {
+        // 只对键盘背景类换图。17.2 上背景实例未必是 UIKBBackgroundView 本身，
+        // 用"类名含 Background"宽匹配（键帽 SplitImageView 类名不含 Background）
+        NSString *clsName = NSStringFromClass([self class]);
+        BOOL isBg = [clsName containsString:@"Background"];
+        if (!isBg) {
             ((void (*)(id, SEL, UIImage *, double, id))orig_setImage)(self, _cmd, image, width, keyplane);
             return;
         }
@@ -948,7 +952,7 @@ __attribute__((constructor))
 static void JPInitialize(void) {
     @autoreleasepool {
         JPReloadPrefs();
-        JPLog(@"JianPan 0.9.1 init — enabled=%d mode=%ld theme='%@' html='%@'",
+        JPLog(@"JianPan 0.9.2 init — enabled=%d mode=%ld theme='%@' html='%@'",
               jpEnabled, (long)jpBackgroundMode, jpThemeName, jpHTMLThemeName);
         JPInstallHooks();
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
